@@ -4,11 +4,23 @@ import 'package:favorite_places/widgets/places_item_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class HomePageScreen extends ConsumerWidget {
+class HomePageScreen extends ConsumerStatefulWidget {
   const HomePageScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomePageScreen> createState() => _HomePageScreenState();
+}
+
+class _HomePageScreenState extends ConsumerState<HomePageScreen> {
+  late Future<void> _placesFuture;
+  @override
+  void initState() {
+    super.initState();
+    _placesFuture = ref.read(placesProvider.notifier).loadPlaces();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final placesList = ref.watch(placesProvider);
 
     return Scaffold(
@@ -31,13 +43,28 @@ class HomePageScreen extends ConsumerWidget {
                     color: Theme.of(context).colorScheme.onBackground,
                   ),
             ))
-          : ListView.builder(
-              itemCount: placesList.length,
-              itemBuilder: (context, indexOfPlacesList) {
-                return PlacesItem(
-                  index: indexOfPlacesList,
-                );
+          : RefreshIndicator(
+              onRefresh: () async {
+                await Future.delayed(const Duration(milliseconds: 300));
+
+                ref.watch(placesProvider);
               },
+              child: ListView.builder(
+                itemCount: placesList.length,
+                itemBuilder: (context, indexOfPlacesList) {
+                  return FutureBuilder(
+                    future: _placesFuture,
+                    builder: (context, snapshot) =>
+                        snapshot.connectionState == ConnectionState.waiting
+                            ? const Center(
+                                child: CircularProgressIndicator(),
+                              )
+                            : PlacesItem(
+                                index: indexOfPlacesList,
+                              ),
+                  );
+                },
+              ),
             ),
     );
   }
